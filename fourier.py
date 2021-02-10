@@ -17,6 +17,7 @@ ROUND_PRECISION = int(math.log(INTEGRAL_PRECISION, 10)+1)
 ZOOM_ITERATIONS = 5
 
 
+# Approximate integration by Riemann sums
 def integrate(function, interval):
   points = np.linspace(interval[0], interval[1], INTEGRAL_PRECISION)
   fx = [function(point) for point in points]
@@ -46,9 +47,6 @@ def calculate_b_ns(f, N):
   return b_ns
 
 
-
-
-
 seriesColors = [
   ("#336B87", "#90AFC5"), 
   ("#C0C684", "#F67280"),
@@ -63,11 +61,11 @@ seriesColors = [
   ("#1E434C", "#8D230F"),
   ]
 
-# lambda x : (0 if x<=-PI/2 or x>=PI/2 else (x+PI if x<=0 else -x+PI)),
 
+# For plotting
 # If graph is discontinuous it needs to be defined thorugh more than one lambda
-# is this is the case, the first element of the list is the list of discontinuities
-# assert(len(functions[i][0]) = len(functions[i][1:])-1)
+# If this is the case, the first element of the list is the list of discontinuities
+# assert(len(functions[i][0]) == len(functions[i][1:])-1)
 functions = [ 
   [[], lambda x : 1 if x==0 or x==1 else x**2 * np.sin(PI/(2*x))+(x-1)*np.sin(PI/(2*(x-1)))],
   [[], lambda x : PI*np.sin((1/1.75*(x+PI))**(1/1.75*(x+PI)))/(1+(1/1.75*(x+PI))**2)],
@@ -80,6 +78,7 @@ functions = [
   [[], lambda x : math.atan(x)],
 ]
 
+# For mathematical calculations
 functions2 = [ 
   lambda x : 1 if x==0 or x==1 else x**2 * np.sin(PI/(2*x))+(x-1)*np.sin(PI/(2*(x-1))),
   lambda x : PI*np.sin((1/1.75*(x+PI))**(1/1.75*(x+PI)))/(1+(1/1.75*(x+PI))**2),
@@ -92,8 +91,9 @@ functions2 = [
   lambda x : math.atan(x),
 ]
 
+# Set lower funcPrecision for faster rendering. The default is 0.001 I think
 funcPrecision = [0.0001, 0.0001, 0.0005, 0.0001, 0.0005, 0.0001, 0.0005, 0.0001, 0.0005]
-funcOrderRuntimes = [(160, .075), (130, .1), (80, .15), (115, .1), (80, .15), (130, .1), (80, .15), (100, .125), (80, .15)]
+funcSeriesOrderAndRuntimes = [(160, .075), (130, .1), (80, .15), (115, .1), (80, .15), (130, .1), (80, .15), (100, .125), (80, .15)]
 funcNameCorners = [UL, DL, UL, DR, UL, UL, DL, UL, UL]
 funcNameScaleBuffs = [(.5, .55), (.55, .75), (.65, 1.3), (.6, 1), (.65, 1.3), (.65, 1.3), (.65, 1.4), (.6, .9), (.6, 1.3)]
 functionNames = [
@@ -115,13 +115,16 @@ functionNames = [
   "$ f(x) = \\ln(x+\\pi)\\ \\ ${\\small(shifted)}",
   "$ f(x) = \\arctan(x)\\ \\ ${\\small (scaled)}"
 ]
-functionNames = [TextMobject(functionNames[i], alignment="\\flushleft", background_stroke_width=0).scale(funcNameScaleBuffs[i][0]).to_corner(funcNameCorners[i], buff=funcNameScaleBuffs[i][1]) for i in range(len(functions2))]
+functionNames = [
+  TextMobject(functionNames[i], 
+  alignment="\\flushleft", 
+  background_stroke_width=0,
+  ).scale(funcNameScaleBuffs[i][0]).to_corner(funcNameCorners[i], buff=funcNameScaleBuffs[i][1]) for i in range(len(functions2))]
 functionNames = [functionNames[i].set_color_by_gradient(seriesColors[i][0], seriesColors[i][1]) for i in range(len(functionNames))]
 
 class Fourier(GraphScene):
   CONFIG = {
-    # "camera_config": {"background_color": WHITE},
-    "camera_config": {"background_color": BG_GREY},
+    "camera_config": {"background_color": "#212121"},
     "x_axis_label": "",
     "y_axis_label": "",
     "y_max" : PI,
@@ -139,9 +142,7 @@ class Fourier(GraphScene):
     return list(np.arange(in_val,end_val+step,step))
 
   def get_functions(self, i):
-    dummy = functions[i]
     finalGraphs = []
-    # if not dummy[0]:
     for j in range(len(functions[i][1:])):
       finalGraphs.append(
         self.get_graph(
@@ -151,8 +152,6 @@ class Fourier(GraphScene):
           x_max=(SERIES_INTERVAL if j==len(functions[i][1:])-1 else functions[i][0][j]),
           step_size=WEIERSTEP, 
           stroke_width=3 ))
-    # else:
-      # finalGraphs.append(ParametricFunction(lambda t : [(functions[i][1])(t), (functions[i][2])(t), 0], color=GRAPH_COLOR, t_min = functions[i][0][0], t_max = functions[i][0][1]))
     return finalGraphs
 
   def weierstrass_order_i(self, i, t):
@@ -171,11 +170,8 @@ class Fourier(GraphScene):
       )
       self.wait()
       a_0 = INTV_LENGTH*integrate(functions2[i], (-SERIES_INTERVAL, SERIES_INTERVAL))
-      print("aaa")
-      a_ns = calculate_a_ns(functions2[i], funcOrderRuntimes[i][0])
-      print("b")
-      b_ns = calculate_b_ns(functions2[i], funcOrderRuntimes[i][0])
-      print("c")
+      a_ns = calculate_a_ns(functions2[i], funcSeriesOrderAndRuntimes[i][0])
+      b_ns = calculate_b_ns(functions2[i], funcSeriesOrderAndRuntimes[i][0])
       graphs = [
         self.get_graph(
           lambda x : a_0/2+a_ns[0]*np.cos(TRIG_MULTIPLIER*x)+b_ns[0]*np.sin(TRIG_MULTIPLIER*x), 
@@ -185,15 +181,13 @@ class Fourier(GraphScene):
           stroke_width=SERIES_STROKE, 
           step_size=funcPrecision[i])
       ]
-      print("Function "+str(i+1)+" order "+str(1))
       nText = TextMobject("$n=1$").scale(.8).to_corner(UR, buff=.5).set_opacity(.6)
       self.play(
         ShowCreation(graphs[0]),
         Write(nText), run_time=1.5)
       self.wait(.9)
       self.play(ApplyMethod(functionNames[i].set_opacity, .65), run_time=.3)
-      for n in range(1, funcOrderRuntimes[i][0]+1):
-        # print("Function "+str(i+1)+" order "+str(n+1))
+      for n in range(1, funcSeriesOrderAndRuntimes[i][0]+1):
         graphs.append(self.get_graph(
           lambda x : sum([a_0/2, *[a_ns[j]*np.cos(TRIG_MULTIPLIER*(j+1)*x)+b_ns[j]*np.sin(TRIG_MULTIPLIER*(j+1)*x) for j in range(n)]]),
           color = seriesColors[i][1],
@@ -203,30 +197,28 @@ class Fourier(GraphScene):
           step_size=funcPrecision[i]))
         self.play(
           Transform(graphs[0], graphs[n]),
-          Transform(nText, TextMobject("$n="+str(n+1)+"$").scale(.8).move_to(nText).set_opacity(.6)), run_time=funcOrderRuntimes[i][1])
+          Transform(nText, TextMobject("$n="+str(n+1)+"$").scale(.8).move_to(nText).set_opacity(.6)), run_time=funcSeriesOrderAndRuntimes[i][1])
       self.wait(.5)
       self.play(*[FadeOut(graph) for graph in [nText, functionNames[i]]+functions_i+[graphs[0]]])
     self.wait()
 
-    title = TexMobject("f(x)=\\displaystyle\\sum_{i=0}^","{\\infty}", "a^n \\cos(b^n\\pi x)").set_color_by_gradient(BLUE_B, BLUE_D).set_color(MATI_PASTEL_RED).scale(.7).to_corner(UL, buff=1.05)
+    title = TexMobject("f(x)=\\displaystyle\\sum_{i=0}^","{\\infty}", "a^n \\cos(b^n\\pi x)").set_color_by_gradient(BLUE_B, BLUE_D).set_color("#B86F62").scale(.7).to_corner(UL, buff=1.05)
     funcNameWeier = TextMobject("Weierstrass function").scale(.7).set_color_by_gradient(BLUE_B, BLUE_D).to_corner(UR, buff=1.31)
     graphs = [
       self.get_graph(
         lambda t: PI/2*self.weierstrass_order_i(0, t/PI), 
         color=BLUE_C, 
-        x_min =-SERIES_INTERVAL , 
-        x_max = SERIES_INTERVAL, 
-        step_size=WEIERSTEP, 
+        x_min =-SERIES_INTERVAL,
+        x_max = SERIES_INTERVAL,
+        step_size=WEIERSTEP,
         stroke_width = 1)
       ]
-    print("Weierstrass 1")
     self.play(
       ShowCreation(graphs[0]),
       Write(title),
       Write(funcNameWeier),
       run_time = 1.5)
     for i in range(1,10):
-      print("Weierstrass "+str(i))
       graphs.append(
         self.get_graph(
           lambda t: PI/2*self.weierstrass_order_i(i, t/PI), 
@@ -252,8 +244,8 @@ class Fourier(GraphScene):
       stroke_width = 1)
     zoomText = TextMobject(
       """Continuous everywhere\\\\
-        Differentiable nowhere""", color=MATI_PASTEL_RED).scale(.6).to_corner(UL, buff=.7)
-    frame = RoundedRectangle(corner_radius=.1, color=MATI_PASTEL_RED, width=3.4, height=1.15, stroke_width=1.5).move_to(zoomText)
+        Differentiable nowhere""", color="#B86F62").scale(.6).to_corner(UL, buff=.7)
+    frame = RoundedRectangle(corner_radius=.1, color="#B86F62", width=3.4, height=1.15, stroke_width=1.5).move_to(zoomText)
     self.play(FadeIn(finalGraph), ShowCreation(VGroup(zoomText, frame)), run_time=3)
     self.wait(1.7)
     for i in range(5):
@@ -267,61 +259,40 @@ class Fourier(GraphScene):
     self.play(*[FadeOut(x) for x in self.mobjects], run_time=3)
     self.wait(1.6)
 
+  # Used a function coded by Theorem of Beethoven but modified it for my personal use
+  # and, in doing that, turned it into awful code. It does the job though
   def setup_axes(self):
     GraphScene.setup_axes(self)
     self.axes.set_stroke(width=3)
     self.axes.set_opacity(.5)
     x_label = TextMobject("$x$").scale(.75).set_opacity(.5).next_to(self.x_axis, RIGHT, buff=.17)
     y_label = TextMobject("$y$").scale(.75).set_opacity(.5).next_to(self.y_axis, UP, buff=.17)
-    # self.x_axis_label.next_to(self.x_axis, direction=RIGHT)
-    # self.y_axis_label.next_to(self.y_axis, direction=UP
-
-    # self.x_axis.add_numbers(*[-PI,-PI/2, PI/2, PI])
     self.y_axis.label_direction = LEFT
-
     values_decimal_x=self.Range(-PI,PI,PI/2)
-    # list_y = [*["%s"%i for i in values_decimal_y]]
     list_x = ["-\\pi", "", "", "", "\\pi"]
-    # list_x = ["-\\pi", "-\\frac{\\pi}{2}", "", "\\frac{\\pi}{2}", "\\pi"]
     values_x = [(i,j) for i,j in zip(values_decimal_x,list_x)]
-    # if (0.0, '0.0') in values_y:
-    #   values_y[values_y.index((0.0, '0.0'))] = (0.0, '')
-    # elif (0, '0') in values_y:
-    #   values_y[values_y.index((0, '0'))] = (0, '')
     self.x_axis_labels = VGroup()
     for x_val, x_tex in values_x:
       tex = TexMobject(x_tex).set_opacity(.6)
       tex.scale(0.7)
       tex.next_to(self.coords_to_point(x_val, 0), DOWN)
       self.x_axis_labels.add(tex)
-
-
-    # values_decimal_y=self.Range(-2,2,1)
     values_decimal_y=self.Range(-PI,PI,PI/2)
-    # Transform positions to tex labels
-    # list_y = [*["%s"%i for i in values_decimal_y]]
     list_y = ["-\\pi", "", "", "", "\\pi"]
-    # list_y = ["-\\pi", "-\\frac{\\pi}{2}", "", "\\frac{\\pi}{2}", "\\pi"]
-    # List touples of (position,label)
     values_y = [(i,j) for i,j in zip(values_decimal_y,list_y)]
-    if (0.0, '0.0') in values_y:
-      values_y[values_y.index((0.0, '0.0'))] = (0.0, '')
-    elif (0, '0') in values_y:
-      values_y[values_y.index((0, '0'))] = (0, '')
     self.y_axis_labels = VGroup()
     for y_val, y_tex in values_y:
       tex = TexMobject(y_tex).set_opacity(.6)
       tex.scale(0.7)
       tex.next_to(self.coords_to_point(0,y_val), LEFT)
       self.y_axis_labels.add(tex)
-
     self.play(
       Write(self.y_axis),
       Write(self.y_axis_labels),
       Write(self.x_axis),
       Write(self.x_axis_labels),
       Write(x_label),
-      Write(x_label),
+      Write(y_label),
     )
 
 
